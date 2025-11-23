@@ -2,19 +2,28 @@
 How to setup a small podman userspace environment with foreman, foreman-puppet, smart-proxy and openvox for a developer
 
 ```
-mkdir foreman
-cd foreman
+mkdir -p $(HOME)/hack/foreman
+cd $(HOME)/hack/foreman
+git clone https://github.com/theforeman/foreman.git -b develop
+git clone https://github.com/theforeman/foreman_puppet.git
+git clone https://github.com/theforeman/smart-proxy
+
 ```
+# prepare podman
+```
+podman network create --driver=bridge foreman-network
+```
+
 
 # database
 ## setup database
 ```
-podman run -d --name foreman-db -e POSTGRES_PASSWORD=DBPASSWORD-ADMIN --network=foreman_default --replace docker.io/postgres:15.14-bookworm
+podman run -d --name foremandb -e POSTGRES_PASSWORD=DBPASSWORD-ADMIN --network=foreman-network --replace docker.io/postgres:15.14-bookworm
 ```
 
 ## database configuration
 ```
-podman exec -it foreman-db /bin/sh
+podman exec -it foremandb /bin/sh
 su - postgres
 psql
 create user foreman with createdb  encrypted password 'DBPASSWORD';
@@ -23,8 +32,7 @@ create user foreman with createdb  encrypted password 'DBPASSWORD';
 # openvox / puppet
 ## setup server
 ```
-podman run -d --name openvox --network=foreman_default --hostname openvox ghcr.i
-o/openvoxproject/openvoxserver:8.8.0-latest
+podman run -d --name openvox --network=foreman-network --hostname openvox ghcr.io/openvoxproject/openvoxserver:8.8.0-latest
 ```
 
 ## configure server
@@ -34,7 +42,22 @@ o/openvoxproject/openvoxserver:8.8.0-latest
 # smart-proxy
 # smart-proxy setup
 ```
-podman run -it --name=smartproxy --network=foreman_default --publish 8000:8000 docker.io/library/debian:12 /bin/sh
+podman image build --volume=${HOME}/hack/foreman/smart-proxy:/smart-proxy:rw  --tag=smart-proxy -f - << EOF
+FROM docker.io/library/debian:12
+RUN apt update
+RUN apt install --yes vim ruby npm bundler ruby-dev libxml2-dev libxslt-dev libvirt-dev libcurl4-openssl-dev libsystemd-dev libyaml-dev libkrb5-dev
+RUN bundle config set --local path '/smart-proxy/vendor'
+RUN cd /smart-proxy && bundle install
+RUN cp /usr/bin/touch /smart-proxy/config/settings.yml
+EXPOSE 8000
+WORKDIR /smart-proxy
+#ENTRYPOINT ["/usr/bin/which","bundle"]
+ENTRYPOINT ["/usr/bin/bundle"]
+CMD ["exec","bin/smart-proxy"]
+EOF
+
+podman container create --name=smart-proxy --network=foreman-network --hostname=smart-proxy --volume=${HOME}/hack/foreman/smart-proxy:/smart-proxy:rw --publish=8000:8000 localhost/smart-proxy:latest 
+
 ```
 
 # configure smart-proxy
@@ -84,7 +107,6 @@ cp config/database.yml.example config/database.yml
 
 ## add puppet plugin
 cd /foreman
-git clone https://github.com/theforeman/foreman_puppet.git
 cd foreman
 echo 'gem "foreman_puppet", path: "../foreman_puppet/"' > bundler.d/foreman-puppet.local.rb
 
