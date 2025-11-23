@@ -1,17 +1,24 @@
 # foreman-development-howto
 How to setup a small development environment in containers for foreman, foreman-puppet, smart-proxy and openvox
 
-
+'''
 mkdir /foreman
 cd /foreman
 
-# database setup
-podman run -d --name foreman-db -e POSTGRES_PASSWORD=pax --network=foreman_defau
-lt --replace docker.io/postgres:15.14-bookworm
+'''
+# database
+## setup database
+'''
+podman run -d --name foreman-db -e POSTGRES_PASSWORD=DBPASSWORD-ADMIN --network=foreman_default --replace docker.io/postgres:15.14-bookworm
+'''
+
+## database configuration
+'''
 podman exec -it foreman-db /bin/sh
 su - postgres
 psql
 create user foreman with createdb  encrypted password 'DBPASSWORD';
+'''
 
 # openvox / puppet
 podman run -d --name openvox --network=foreman_default --hostname openvox ghcr.i
