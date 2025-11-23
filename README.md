@@ -1,7 +1,7 @@
 # foreman-development-howto
 How to setup a small development environment in containers for foreman, foreman-puppet, smart-proxy and openvox
 
-``
+```
 mkdir /foreman
 cd /foreman
 ```
