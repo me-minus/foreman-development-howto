@@ -1,5 +1,5 @@
 # foreman-development-howto
-How to setup a small development environment in containers for foreman, foreman-puppet, smart-proxy and openvox
+How to setup a small podman userspace environment with foreman, foreman-puppet, smart-proxy and openvox for a developer
 
 ```
 mkdir foreman
